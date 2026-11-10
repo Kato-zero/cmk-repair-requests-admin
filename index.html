@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CMK Admin">
+<meta name="theme-color" content="#F2F2F7">
+<title>CMK Admin</title>
+<style>
+  :root {
+    --bg: #F2F2F7; --card: #FFFFFF; --text: #000; --text2: rgba(60,60,67,.6); --text3: rgba(60,60,67,.3);
+    --sep: rgba(60,60,67,.18); --fill: rgba(120,120,128,.12);
+    --accent: #6D28D9; --green: #34C759; --red: #FF3B30; --orange: #FF9500; --blue: #007AFF;
+    --nav: rgba(249,249,249,.86);
+    --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #000; --card: #1C1C1E; --text: #fff; --text2: rgba(235,235,245,.6); --text3: rgba(235,235,245,.3);
+      --sep: rgba(84,84,88,.65); --fill: rgba(120,120,128,.24); --accent: #A78BFA; --nav: rgba(28,28,30,.86);
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+         background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
+         -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  button, input, textarea, select { font: inherit; color: inherit; background: none; border: 0; outline: none; }
+  button { cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+  svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2;
+        stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  #app { max-width: 620px; margin: 0 auto; min-height: 100dvh; padding-bottom: calc(24px + var(--safe-b)); }
+
+  /* Nav */
+  .nav { position: sticky; top: 0; z-index: 50; background: var(--nav);
+         backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+         padding-top: var(--safe-t); border-bottom: .5px solid transparent; transition: border-color .2s; }
+  .nav.scrolled { border-bottom-color: var(--sep); }
+  .nav-bar { height: 44px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .nav-title { font-size: 17px; font-weight: 600; opacity: 0; transition: opacity .2s; }
+  .nav.scrolled .nav-title { opacity: 1; }
+  .nb { position: absolute; top: 0; height: 44px; font-size: 17px; color: var(--accent); }
+  .nb-l { left: 16px; }
+  .nb-r { right: 8px; width: 40px; display: grid; place-items: center; }
+  .nb-r svg { width: 24px; height: 24px; }
+  .nb-r.spin svg { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .large { padding: 4px 16px 10px; }
+  .large h1 { font-size: 34px; font-weight: 700; letter-spacing: .37px; line-height: 1.1; }
+  .large p { color: var(--text2); font-size: 15px; margin-top: 4px; }
+
+  .banner { margin: 0 16px 12px; padding: 10px 14px; border-radius: 10px; background: var(--fill);
+            color: var(--text2); font-size: 13px; line-height: 1.35; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 16px 14px; }
+  .stat { background: var(--card); border-radius: 12px; padding: 12px 14px; }
+  .stat .n { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* Search & segments */
+  .search { position: relative; margin: 0 16px 10px; }
+  .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px;
+                color: var(--text2); pointer-events: none; }
+  .search input { width: 100%; height: 36px; border-radius: 10px; background: var(--fill); padding: 0 12px 0 34px; font-size: 17px; }
+  .search input::placeholder { color: var(--text2); }
+  .seg { display: flex; background: var(--fill); border-radius: 9px; padding: 2px; margin: 0 16px 8px; }
+  .seg button { flex: 1; padding: 6px 0; border-radius: 7px; font-size: 13px; font-weight: 500; }
+  .seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+
+  /* Lists */
+  .section-h { font-size: 13px; text-transform: uppercase; color: var(--text2); padding: 20px 32px 6px; }
+  .group { background: var(--card); margin: 0 16px; border-radius: 10px; overflow: hidden; }
+  .row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 12px 10px 16px;
+         border-bottom: .5px solid var(--sep); text-align: left; }
+  .row:last-child { border-bottom: 0; }
+  .row:active { background: var(--fill); }
+  .r-main { flex: 1; min-width: 0; }
+  .r-name { font-size: 17px; font-weight: 500; letter-spacing: -.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .r-sub { font-size: 14px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .r-meta { font-size: 12px; color: var(--text3); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .chev { color: var(--text3); display: grid; }
+  .chev svg { width: 16px; height: 16px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; flex: none; white-space: nowrap; }
+  .pill.new { background: rgba(255,149,0,.16); color: var(--orange); }
+  .pill.prog { background: rgba(0,122,255,.14); color: var(--blue); }
+  .pill.done { background: rgba(52,199,89,.18); color: var(--green); }
+  .empty { text-align: center; padding: 56px 28px; color: var(--text2); }
+  .empty svg { width: 44px; height: 44px; color: var(--text3); margin-bottom: 10px; }
+  .empty h3 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+
+  /* Login */
+  .login { padding-top: 40px; }
+  .login .large { text-align: center; }
+  .form-h { font-size: 13px; text-transform: uppercase; color: var(--text2); padding: 20px 32px 6px; }
+  .frow { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 16px; border-bottom: .5px solid var(--sep); }
+  .frow:last-child { border-bottom: 0; }
+  .flabel { font-size: 17px; width: 92px; flex: none; }
+  .frow input { flex: 1; min-width: 0; text-align: right; font-size: 17px; padding: 12px 0; }
+  .frow input::placeholder, .area::placeholder { color: var(--text3); }
+  .area { display: block; width: 100%; min-height: 84px; padding: 12px 16px; font-size: 17px; resize: none; line-height: 1.35; }
+  .err { color: var(--red); font-size: 14px; text-align: center; margin: 12px 16px 0; min-height: 18px; }
+  .cta { display: block; width: calc(100% - 32px); margin: 20px 16px 0; height: 50px; border-radius: 12px;
+         background: var(--accent); color: #fff; font-size: 17px; font-weight: 600; }
+  .cta:active { opacity: .85; }
+  .cta.danger { background: none; color: var(--red); border: 0; }
+  .cta:disabled { opacity: .5; }
+
+  /* Detail */
+  .modal { position: fixed; inset: 0; z-index: 300; pointer-events: none; }
+  .modal.open { pointer-events: auto; }
+  .modal .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.4); opacity: 0; transition: opacity .3s; }
+  .modal.open .scrim { opacity: 1; }
+  .modal .panel { position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 620px; max-height: 92dvh;
+                  display: flex; flex-direction: column; overflow: hidden; background: var(--bg);
+                  border-radius: 14px 14px 0 0; padding-bottom: var(--safe-b);
+                  transform: translateY(102%); transition: transform .38s cubic-bezier(.32,.72,0,1); }
+  .modal.open .panel { transform: none; }
+  .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--text3); margin: 8px auto 0; flex: none; }
+  .bar { height: 44px; flex: none; position: relative; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+  .bar-title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 600; }
+  .bar-btn { color: var(--accent); font-size: 17px; font-weight: 600; padding: 8px 2px; }
+  .body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
+  .hero { text-align: center; padding: 6px 20px 14px; }
+  .h-name { font-size: 26px; font-weight: 700; letter-spacing: -.4px; }
+  .h-sub { font-size: 15px; color: var(--text2); margin: 3px 0 10px; }
+  .status-seg { display: flex; background: var(--fill); border-radius: 9px; padding: 2px; margin: 0 16px; }
+  .status-seg button { flex: 1; padding: 7px 0; border-radius: 7px; font-size: 13px; font-weight: 500; }
+  .status-seg button.on { background: var(--card); font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: .5px solid var(--sep); font-size: 17px; }
+  .kv:last-child { border-bottom: 0; }
+  .kv span { color: var(--text2); flex: none; }
+  .kv b { font-weight: 500; text-align: right; }
+  .act { display: flex; align-items: center; gap: 12px; padding: 13px 16px; font-size: 17px; color: var(--accent); border-bottom: .5px solid var(--sep); }
+  .act:last-child { border-bottom: 0; }
+  .act:active { background: var(--fill); }
+  .act svg { width: 20px; height: 20px; }
+  .desc { padding: 12px 16px; font-size: 17px; line-height: 1.4; white-space: pre-wrap; border-bottom: .5px solid var(--sep); }
+  .shot { display: block; width: calc(100% - 32px); margin: 12px 16px; max-height: 320px; object-fit: contain;
+          border-radius: 10px; background: var(--fill); }
+  .money-row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 16px; border-bottom: .5px solid var(--sep); }
+  .money-row span { font-size: 17px; width: 92px; flex: none; }
+  .money-row input { flex: 1; min-width: 0; text-align: right; font-size: 17px; padding: 12px 0; }
+
+  /* Alert */
+  .modal.center .panel { top: 50%; bottom: auto; left: 50%; right: auto; width: 270px; max-width: 86vw; margin: 0;
+                         max-height: none; border-radius: 14px; padding: 0; background: var(--card);
+                         transform: translate(-50%, -50%) scale(.92); opacity: 0; transition: transform .25s, opacity .25s; }
+  .modal.center.open .panel { transform: translate(-50%, -50%); opacity: 1; }
+  .alert-head { padding: 20px 16px 18px; text-align: center; }
+  .alert-head h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .alert-head p { font-size: 13px; color: var(--text2); }
+  .alert-btns { display: flex; border-top: .5px solid var(--sep); }
+  .alert-btn { flex: 1; padding: 11px 0; font-size: 17px; color: var(--accent); }
+  .alert-btn + .alert-btn { font-weight: 600; border-left: .5px solid var(--sep); }
+  .alert-btn.danger { color: var(--red); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="nav" id="nav">
+    <div class="nav-bar">
+      <div class="nav-title">CMK Admin</div>
+      <button class="nb nb-l" id="signOutBtn" hidden>Sign out</button>
+      <button class="nb nb-r" id="refreshBtn" aria-label="Refresh"></button>
+    </div>
+  </header>
+
+  <!-- Sign in (only when Supabase is configured) -->
+  <section id="login" class="login" hidden>
+    <div class="large"><h1>CMK Admin</h1><p>Sign in to view repair requests.</p></div>
+    <form id="loginForm">
+      <div class="group">
+        <label class="frow"><span class="flabel">Email</span><input type="email" id="lEmail" required autocomplete="username"></label>
+        <label class="frow"><span class="flabel">Password</span><input type="password" id="lPass" required autocomplete="current-password"></label>
+      </div>
+      <p class="err" id="lErr"></p>
+      <button class="cta" type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <main id="main" hidden>
+    <div class="large"><h1>Requests</h1><p id="sub">Loading…</p></div>
+    <div class="banner" id="banner" hidden>Local preview: showing requests saved in this browser. Add your Supabase details in CONFIG to see every request.</div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="cNew">0</div><div class="l">New</div></div>
+      <div class="stat"><div class="n" id="cProg">0</div><div class="l">In progress</div></div>
+      <div class="stat"><div class="n" id="cDone">0</div><div class="l">Completed</div></div>
+    </div>
+    <div class="search">
+      <span data-ic="search" style="display:contents"></span>
+      <input id="q" type="search" placeholder="Search name, phone, location or ref" autocomplete="off">
+    </div>
+    <div class="seg">
+      <button class="on" data-f="all">All</button>
+      <button data-f="received">New</button>
+      <button data-f="in_progress">In progress</button>
+      <button data-f="done">Done</button>
+    </div>
+    <div id="list"></div>
+  </main>
+
+  <!-- Detail sheet -->
+  <div class="modal" id="detail">
+    <div class="scrim" data-close></div>
+    <div class="panel">
+      <div class="grab"></div>
+      <div class="bar">
+        <span></span>
+        <div class="bar-title">Request</div>
+        <button class="bar-btn" data-close type="button">Close</button>
+      </div>
+      <div class="body" id="dBody"></div>
+    </div>
+  </div>
+
+  <!-- Alert -->
+  <div class="modal center" id="alert">
+    <div class="scrim"></div>
+    <div class="panel">
+      <div class="alert-head"><h4 id="alertTitle"></h4><p id="alertMsg"></p></div>
+      <div class="alert-btns" id="alertBtns"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ---------- Configuration ----------
+   Leave blank to preview requests saved in this browser.
+   To connect Supabase, fill in your project URL and anon key, and create a table
+   "repair_requests" with columns: id (uuid, default gen_random_uuid()), ref (text),
+   name, phone, location, description, service, preferred, photo (text),
+   status (text), notes (text), amount (numeric), created_at (timestamptz default now()).
+   Enable Row Level Security and allow staff (authenticated users) to read and update. */
+const CONFIG = {
+  supabaseUrl: 'https://phcjncjdgqdltiyesvfw.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoY2puY2pkZ3FkbHRpeWVzdmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA1OTk4MDIsImV4cCI6MjEwNjE3NTgwMn0.GUbvA_fV289ccSg4U-Kgl9EtekjYOjaJirwPX_GQG54',
+  table: 'repair_requests'
+};
+const LOCAL_KEY = 'sf_client_requests';
+const CONFIGURED = !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey);
+
+const STATUS = {
+  received:    { label: 'New',         cls: 'new' },
+  in_progress: { label: 'In progress', cls: 'prog' },
+  done:        { label: 'Completed',   cls: 'done' }
+};
+
+const P = {
+  refresh: '<path d="M20 11a8 8 0 0 0-14.5-4.5L4 9"/><path d="M4 4v5h5"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 15"/><path d="M20 20v-5h-5"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
+  chev: '<path d="M9 6l6 6-6 6"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4z"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 2h6l1-2h5"/>'
+};
+const I = Object.fromEntries(Object.entries(P).map(([k, v]) => [k, `<svg viewBox="0 0 24 24" aria-hidden="true">${v}</svg>`]));
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = n => n === '' || n == null ? '—' : 'ZMW ' + (+n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dayKey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const fmt = iso => new Date(iso).toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+
+/* ---------- Data layer ---------- */
+let token = null;
+let all = [];
+let filter = 'all', query = '', openRef = null;
+
+function norm(r) {
+  return {
+    id: r.id ?? r.ref,
+    ref: r.ref || '',
+    name: r.name || '',
+    phone: r.phone || '',
+    location: r.location || '',
+    description: r.description || '',
+    service: r.service || 'Laptop repair',
+    preferred: r.preferred || '',
+    photo: r.photo || '',
+    status: r.status || 'received',
+    createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
+    notes: r.notes || '',
+    amount: r.amount ?? ''
+  };
+}
+function loadLocal() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || []; } catch (e) { return []; } }
+function saveLocal(arr) { try { localStorage.setItem(LOCAL_KEY, JSON.stringify(arr)); } catch (e) {} }
+
+async function rest(path, opts = {}) {
+  const r = await fetch(`${CONFIG.supabaseUrl}/rest/v1/${path}`, {
+    ...opts,
+    headers: {
+      apikey: CONFIG.supabaseAnonKey,
+      Authorization: 'Bearer ' + (token || CONFIG.supabaseAnonKey),
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+      ...(opts.headers || {})
+    }
+  });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.status === 204 ? null : r.json();
+}
+
+const store = {
+  async list() {
+    if (!CONFIGURED) return loadLocal().map(norm);
+    const rows = await rest(`${CONFIG.table}?select=*&order=created_at.desc`);
+    return rows.map(norm);
+  },
+  async update(r, patch) {
+    if (!CONFIGURED) {
+      const raw = loadLocal();
+      const x = raw.find(q => q.ref === r.ref);
+      if (x) Object.assign(x, patch);
+      saveLocal(raw);
+      return;
+    }
+    await rest(`${CONFIG.table}?id=eq.${encodeURIComponent(r.id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+  },
+  async remove(r) {
+    if (!CONFIGURED) {
+      saveLocal(loadLocal().filter(q => q.ref !== r.ref));
+      return;
+    }
+    await rest(`${CONFIG.table}?id=eq.${encodeURIComponent(r.id)}`, { method: 'DELETE' });
+  }
+};
+
+async function signIn(email, password) {
+  const r = await fetch(`${CONFIG.supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: CONFIG.supabaseAnonKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  if (!r.ok) throw new Error('auth');
+  token = (await r.json()).access_token;
+}
+
+/* ---------- Modals ---------- */
+function openModal(id) { document.getElementById(id).classList.add('open'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (!$$('.modal.open').length) document.body.style.overflow = '';
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-close]');
+  if (c) closeModal(c.closest('.modal').id);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $$('.modal.open').forEach(m => m.id !== 'alert' && closeModal(m.id));
+});
+function alertOnly(title, msg) {
+  $('#alertTitle').textContent = title;
+  $('#alertMsg').textContent = msg;
+  $('#alertBtns').innerHTML = `<button class="alert-btn" data-r="1">OK</button>`;
+  $('#alertBtns').onclick = () => closeModal('alert');
+  openModal('alert');
+}
+function ask(title, msg, ok, destructive) {
+  return new Promise(resolve => {
+    $('#alertTitle').textContent = title;
+    $('#alertMsg').textContent = msg;
+    $('#alertBtns').innerHTML = `<button class="alert-btn" data-r="0">Cancel</button>` +
+      `<button class="alert-btn${destructive ? ' danger' : ''}" data-r="1">${esc(ok)}</button>`;
+    $('#alertBtns').onclick = e => {
+      const b = e.target.closest('[data-r]');
+      if (!b) return;
+      closeModal('alert');
+      resolve(b.dataset.r === '1');
+    };
+    openModal('alert');
+  });
+}
+
+/* ---------- Load & render ---------- */
+async function refresh() {
+  const btn = $('#refreshBtn');
+  btn.classList.add('spin');
+  try {
+    all = await store.list();
+    renderAll();
+  } catch (e) {
+    alertOnly('Could not load requests', 'Check your connection and try again.');
+  } finally {
+    btn.classList.remove('spin');
+  }
+}
+
+function renderAll() {
+  const count = s => all.filter(r => r.status === s).length;
+  $('#cNew').textContent = count('received');
+  $('#cProg').textContent = count('in_progress');
+  $('#cDone').textContent = count('done');
+  $('#sub').textContent = `${all.length} request${all.length === 1 ? '' : 's'} in total`;
+  renderList();
+  if (openRef) renderDetail(openRef);
+}
+
+function dayLabel(key) {
+  const t = new Date();
+  const y = new Date(t); y.setDate(t.getDate() - 1);
+  if (key === dayKey(t)) return 'Today';
+  if (key === dayKey(y)) return 'Yesterday';
+  const [Y, M, D] = key.split('-').map(Number);
+  return new Date(Y, M - 1, D).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short', year: Y === t.getFullYear() ? undefined : 'numeric' });
+}
+
+function renderList() {
+  const host = $('#list');
+  if (!all.length) { host.innerHTML = `<div class="empty">${I.inbox}<h3>No requests yet</h3><p>New repair requests will appear here.</p></div>`; return; }
+  const q = query.trim().toLowerCase();
+  const list = all
+    .filter(r => filter === 'all' || r.status === filter)
+    .filter(r => !q || [r.name, r.phone, r.location, r.ref, r.service].some(v => String(v).toLowerCase().includes(q)))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (!list.length) { host.innerHTML = `<div class="empty">${I.search}<h3>No matches</h3><p>Try another search or filter.</p></div>`; return; }
+
+  const groups = {};
+  list.forEach(r => { (groups[dayKey(new Date(r.createdAt))] ??= []).push(r); });
+  host.innerHTML = Object.entries(groups).map(([k, arr]) =>
+    `<div class="section-h">${dayLabel(k)}</div>
+     <div class="group">${arr.map(r => {
+       const s = STATUS[r.status] || STATUS.received;
+       const t = new Date(r.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+       return `<button class="row" data-ref="${esc(r.ref)}">
+         <div class="r-main">
+           <div class="r-name">${esc(r.name)}</div>
+           <div class="r-sub">${esc(r.service)} · ${esc(r.location)}</div>
+           <div class="r-meta">${esc(r.ref)} · ${t}</div>
+         </div>
+         <span class="pill ${s.cls}">${s.label}</span>
+         <span class="chev">${I.chev}</span>
+       </button>`;
+     }).join('')}</div>`
+  ).join('');
+}
+
+$('#list').addEventListener('click', e => {
+  const row = e.target.closest('[data-ref]');
+  if (row) openDetail(row.dataset.ref);
+});
+
+/* ---------- Detail ---------- */
+function openDetail(ref) {
+  openRef = ref;
+  renderDetail(ref);
+  openModal('detail');
+}
+
+function waLink(phone) {
+  let d = String(phone || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('0')) d = '260' + d.slice(1);
+  return `https://wa.me/${d}`;
+}
+
+function renderDetail(ref) {
+  const r = all.find(x => x.ref === ref);
+  if (!r) { closeModal('detail'); openRef = null; return; }
+  const s = STATUS[r.status] || STATUS.received;
+  const wa = waLink(r.phone);
+  const tel = String(r.phone || '').replace(/\s/g, '');
+  $('#dBody').innerHTML = `
+    <div class="hero">
+      <div class="h-name">${esc(r.name)}</div>
+      <div class="h-sub">${esc(r.service)} · ${esc(r.ref)}</div>
+      <span class="pill ${s.cls}">${s.label}</span>
+    </div>
+
+    <div class="form-h">Status</div>
+    <div class="status-seg">
+      ${Object.entries(STATUS).map(([k, v]) => `<button data-st="${k}" class="${r.status === k ? 'on' : ''}">${v.label}</button>`).join('')}
+    </div>
+
+    <div class="form-h">Contact</div>
+    <div class="group">
+      ${tel ? `<a class="act" href="tel:${esc(tel)}">${I.phone}${esc(r.phone)}</a>` : ''}
+      ${wa ? `<a class="act" href="${wa}" target="_blank" rel="noopener">${I.chat}WhatsApp</a>` : ''}
+      <div class="kv"><span>Location</span><b>${esc(r.location)}</b></div>
+      <div class="kv"><span>Preferred</span><b>${r.preferred ? fmt(r.preferred) : 'Not given'}</b></div>
+      <div class="kv"><span>Submitted</span><b>${fmt(r.createdAt)}</b></div>
+    </div>
+
+    <div class="form-h">Problem</div>
+    <div class="group">
+      <div class="desc">${esc(r.description)}</div>
+      ${r.photo ? `<img class="shot" src="${r.photo}" alt="Problem photo">` : ''}
+    </div>
+
+    <div class="form-h">Quote &amp; notes</div>
+    <div class="group">
+      <div class="money-row"><span>Amount</span><input type="number" id="dAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${r.amount === '' ? '' : esc(r.amount)}"></div>
+      <textarea class="area" id="dNotes" placeholder="Internal notes">${esc(r.notes)}</textarea>
+    </div>
+    <button class="cta" id="dSave" type="button">Save quote &amp; notes</button>
+    <button class="cta danger" id="dDelete" type="button">Delete request</button>`;
+}
+
+$('#dBody').addEventListener('click', async e => {
+  const st = e.target.closest('[data-st]');
+  const r = all.find(x => x.ref === openRef);
+  if (!r) return;
+  if (st) {
+    if (st.dataset.st === r.status) return;
+    await patch(r, { status: st.dataset.st });
+    return;
+  }
+  if (e.target.closest('#dSave')) {
+    const amt = $('#dAmount').value;
+    const ok = await patch(r, { amount: amt === '' ? null : +amt, notes: $('#dNotes').value.trim() });
+    if (ok) alertOnly('Saved', 'Quote and notes updated.');
+    return;
+  }
+  if (e.target.closest('#dDelete')) {
+    if (await ask('Delete request?', `${r.name} · ${r.ref}. This cannot be undone.`, 'Delete', true)) {
+      try {
+        await store.remove(r);
+        all = all.filter(x => x.ref !== r.ref);
+        closeModal('detail');
+        openRef = null;
+        renderAll();
+      } catch (err) {
+        alertOnly('Could not delete', 'Check your connection and try again.');
+      }
+    }
+  }
+});
+
+async function patch(r, p) {
+  try {
+    await store.update(r, p);
+    Object.assign(r, p);
+    renderAll();
+    return true;
+  } catch (err) {
+    alertOnly('Could not save', 'Check your connection and try again.');
+    return false;
+  }
+}
+
+/* ---------- Filters & search ---------- */
+$$('.seg button').forEach(b => b.addEventListener('click', () => {
+  $$('.seg button').forEach(x => x.classList.toggle('on', x === b));
+  filter = b.dataset.f;
+  renderList();
+}));
+$('#q').addEventListener('input', e => { query = e.target.value; renderList(); });
+
+/* ---------- Sign in / out ---------- */
+function showLogin() {
+  $('#main').hidden = true;
+  $('#login').hidden = false;
+  $('#signOutBtn').hidden = true;
+}
+function enter() {
+  $('#login').hidden = true;
+  $('#main').hidden = false;
+  $('#banner').hidden = CONFIGURED;
+  $('#signOutBtn').hidden = !CONFIGURED;
+  refresh();
+}
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('#lErr').textContent = '';
+  try {
+    await signIn($('#lEmail').value.trim(), $('#lPass').value);
+    $('#lPass').value = '';
+    enter();
+  } catch (err) {
+    $('#lErr').textContent = 'Email or password is incorrect.';
+  }
+});
+$('#signOutBtn').addEventListener('click', () => {
+  token = null; all = []; openRef = null;
+  closeModal('detail');
+  showLogin();
+});
+
+$('#refreshBtn').addEventListener('click', refresh);
+window.addEventListener('scroll', () => $('#nav').classList.toggle('scrolled', window.scrollY > 8), { passive: true });
+setInterval(() => { if (!$('#main').hidden && !$('#detail').classList.contains('open')) refresh(); }, 60000);
+
+/* ---------- Boot ---------- */
+$$('[data-ic]').forEach(el => { el.innerHTML = I[el.dataset.ic]; });
+$('#refreshBtn').innerHTML = I.refresh;
+if (CONFIGURED) showLogin(); else enter();
+</script>
+</body>
+</html>
