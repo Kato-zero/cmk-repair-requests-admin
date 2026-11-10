@@ -148,6 +148,14 @@
   .money-row span { font-size: 17px; width: 92px; flex: none; }
   .money-row input { flex: 1; min-width: 0; text-align: right; font-size: 17px; padding: 12px 0; }
 
+  .switch { position: relative; width: 51px; height: 31px; margin-left: auto; flex: none; }
+  .switch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+  .switch i { position: absolute; inset: 0; border-radius: 31px; background: var(--fill); transition: background .25s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15); transition: transform .25s cubic-bezier(.32,.72,0,1); }
+  .switch input:checked + i { background: var(--green); }
+  .switch input:checked + i::after { transform: translateX(20px); }
+  .stat .n { font-size: 19px; }
+
   /* Alert */
   .modal.center .panel { top: 50%; bottom: auto; left: 50%; right: auto; width: 270px; max-width: 86vw; margin: 0;
                          max-height: none; border-radius: 14px; padding: 0; background: var(--card);
@@ -190,9 +198,9 @@
     <div class="large"><h1>Requests</h1><p id="sub">Loading…</p></div>
     <div class="banner" id="banner" hidden>Local preview: showing requests saved in this browser. Add your Supabase details in CONFIG to see every request.</div>
     <div class="stats">
-      <div class="stat"><div class="n" id="cNew">0</div><div class="l">New</div></div>
-      <div class="stat"><div class="n" id="cProg">0</div><div class="l">In progress</div></div>
-      <div class="stat"><div class="n" id="cDone">0</div><div class="l">Completed</div></div>
+      <div class="stat"><div class="n" id="mCollected">ZMW 0</div><div class="l">Collected</div></div>
+      <div class="stat"><div class="n" id="mOutstanding">ZMW 0</div><div class="l">Outstanding</div></div>
+      <div class="stat"><div class="n" id="mTransport">ZMW 0</div><div class="l">Transport collected</div></div>
     </div>
     <div class="search">
       <span data-ic="search" style="display:contents"></span>
@@ -274,6 +282,11 @@ const money = n => n === '' || n == null ? '—' : 'ZMW ' + (+n).toLocaleString(
 const dayKey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 const fmt = iso => new Date(iso).toLocaleString('en-US', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
+const totalOf = r => (+r.amount || 0) + (+r.transport_fee || 0);
+const money0 = n => 'ZMW ' + Math.round(n).toLocaleString('en-US');
+const fmtDay = d => { const [Y, M, D] = String(d).split('-').map(Number); return new Date(Y, M - 1, D).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
+const num = v => (v === '' || v == null) ? null : +v;
+
 /* ---------- Data layer ---------- */
 let token = null;
 let all = [];
@@ -293,7 +306,9 @@ function norm(r) {
     status: r.status || 'received',
     createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
     notes: r.notes || '',
-    amount: r.amount ?? ''
+    amount: r.amount ?? '',
+    transport_fee: +r.transport_fee || 0,
+    paid: !!r.paid
   };
 }
 function loadLocal() { try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || []; } catch (e) { return []; } }
@@ -400,10 +415,10 @@ async function refresh() {
 }
 
 function renderAll() {
-  const count = s => all.filter(r => r.status === s).length;
-  $('#cNew').textContent = count('received');
-  $('#cProg').textContent = count('in_progress');
-  $('#cDone').textContent = count('done');
+  const sum = fn => all.filter(fn).reduce((s, r) => s + totalOf(r), 0);
+  $('#mCollected').textContent = money0(sum(r => r.paid));
+  $('#mOutstanding').textContent = money0(sum(r => r.status === 'done' && !r.paid));
+  $('#mTransport').textContent = money0(all.filter(r => r.paid).reduce((s, r) => s + (+r.transport_fee || 0), 0));
   $('#sub').textContent = `${all.length} request${all.length === 1 ? '' : 's'} in total`;
   renderList();
   if (openRef) renderDetail(openRef);
@@ -439,7 +454,7 @@ function renderList() {
          <div class="r-main">
            <div class="r-name">${esc(r.name)}</div>
            <div class="r-sub">${esc(r.service)} · ${esc(r.location)}</div>
-           <div class="r-meta">${esc(r.ref)} · ${t}</div>
+           <div class="r-meta">${esc(r.ref)} · ${t} · ${money(totalOf(r))}</div>
          </div>
          <span class="pill ${s.cls}">${s.label}</span>
          <span class="chev">${I.chev}</span>
@@ -490,7 +505,7 @@ function renderDetail(ref) {
       ${tel ? `<a class="act" href="tel:${esc(tel)}">${I.phone}${esc(r.phone)}</a>` : ''}
       ${wa ? `<a class="act" href="${wa}" target="_blank" rel="noopener">${I.chat}WhatsApp</a>` : ''}
       <div class="kv"><span>Location</span><b>${esc(r.location)}</b></div>
-      <div class="kv"><span>Preferred</span><b>${r.preferred ? fmt(r.preferred) : 'Not given'}</b></div>
+      <div class="kv"><span>Preferred</span><b>${r.preferred ? fmtDay(r.preferred) : 'Not given'}</b></div>
       <div class="kv"><span>Submitted</span><b>${fmt(r.createdAt)}</b></div>
     </div>
 
@@ -500,12 +515,18 @@ function renderDetail(ref) {
       ${r.photo ? `<img class="shot" src="${r.photo}" alt="Problem photo">` : ''}
     </div>
 
-    <div class="form-h">Quote &amp; notes</div>
+    <div class="form-h">Charges</div>
     <div class="group">
-      <div class="money-row"><span>Amount</span><input type="number" id="dAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${r.amount === '' ? '' : esc(r.amount)}"></div>
+      <div class="money-row"><span>Repair fee</span><input type="number" id="dAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value="${r.amount === '' ? '' : esc(r.amount)}"></div>
+      <div class="money-row"><span>Transport</span><input type="number" id="dTransport" inputmode="decimal" step="0.01" min="0" placeholder="0 if waived" value="${r.transport_fee ? esc(r.transport_fee) : ''}"></div>
+      <div class="kv"><span>Total</span><b class="acc" id="dTotal">${money(totalOf(r))}</b></div>
+      <label class="money-row"><span>Paid</span><div class="switch"><input type="checkbox" id="dPaid" ${r.paid ? 'checked' : ''}><i></i></div></label>
+    </div>
+    <div class="form-h">Notes</div>
+    <div class="group">
       <textarea class="area" id="dNotes" placeholder="Internal notes">${esc(r.notes)}</textarea>
     </div>
-    <button class="cta" id="dSave" type="button">Save quote &amp; notes</button>
+    <button class="cta" id="dSave" type="button">Save</button>
     <button class="cta danger" id="dDelete" type="button">Delete request</button>`;
 }
 
@@ -519,8 +540,12 @@ $('#dBody').addEventListener('click', async e => {
     return;
   }
   if (e.target.closest('#dSave')) {
-    const amt = $('#dAmount').value;
-    const ok = await patch(r, { amount: amt === '' ? null : +amt, notes: $('#dNotes').value.trim() });
+    const ok = await patch(r, {
+      amount: num($('#dAmount').value),
+      transport_fee: +($('#dTransport').value || 0),
+      paid: $('#dPaid').checked,
+      notes: $('#dNotes').value.trim()
+    });
     if (ok) alertOnly('Saved', 'Quote and notes updated.');
     return;
   }
@@ -536,6 +561,12 @@ $('#dBody').addEventListener('click', async e => {
         alertOnly('Could not delete', 'Check your connection and try again.');
       }
     }
+  }
+});
+
+$('#dBody').addEventListener('input', e => {
+  if (e.target.id === 'dAmount' || e.target.id === 'dTransport') {
+    $('#dTotal').textContent = money((+$('#dAmount').value || 0) + (+$('#dTransport').value || 0));
   }
 });
 
